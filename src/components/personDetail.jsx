@@ -1,4 +1,4 @@
-import { useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/apiConfig';
 import { mapGender, mapDocumentType } from '../utils/personMapper';
 import { validaciones } from '../utils/validations';
@@ -8,12 +8,13 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
   const [formData, setFormData] = useState(personaInicial);
   const [datosOriginales, setDatosOriginales] = useState(personaInicial);
   const [errores, setErrores] = useState({});
+  const [guardando, setGuardando] = useState(false); // Nuevo estado para evitar doble submit
 
   useEffect(() => {
     console.log('formData actual:', formData);
     console.log('Tipo documento:', formData.tipo_documento);
     console.log('Género:', formData.genero);
-  }, [formData]);
+  }, [formData, modoEdicion]);
 
   const validarCampo = (name, value) => {
     let resultado = { valido: true, mensaje: "" };
@@ -125,11 +126,17 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     return formularioValido;
   };
 
-  const handleEditar = () => {
+   const handleEditar = (e) => {
+    e.preventDefault(); // Prevenir cualquier comportamiento por defecto
+    e.stopPropagation(); // Detener propagación
+    console.log('handleEditar llamado'); // Debug
     setModoEdicion(true);
   };
 
-  const handleCancelar = () => {
+  const handleCancelar = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('handleCancelar llamado'); // Debug
     setFormData(datosOriginales);
     setErrores({});
     setModoEdicion(false);
@@ -137,17 +144,34 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
 
   const handleGuardar = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('handleGuardar llamado'); // Debug
+    console.log('modoEdicion:', modoEdicion); // Debug
+    
+    // Solo procesar si estamos en modo edición
+    if (!modoEdicion) {
+      console.log('No está en modo edición, ignorando submit');
+      return;
+    }
+
+    // Evitar doble submit
+    if (guardando) {
+      console.log('Ya se está guardando, ignorando');
+      return;
+    }
     
     if (!validarFormulario()) {
       alert("Por favor corrija los errores en el formulario");
       return;
     }
+
+    setGuardando(true); // Bloquear mientras guarda
     
     try {
-    
       const personaParaAPI = {
         firstName: formData.primer_nombre,
-        secondName: formData.segundo_nombre || '',
+        secondName: formData.segundo_nombre || undefined,
         lastNames: formData.apellidos,
         birthDate: formData.fecha_nacimiento,
         gender: mapGender(formData.genero),
@@ -171,12 +195,15 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al actualizar la persona');
+      setGuardando(false);
     }
   };
 
   const actualizarPersona = async (personaParaAPI) => {
     try {
-   
+      console.log('Enviando PUT a:', `${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`);
+      console.log('Body:', JSON.stringify(personaParaAPI, null, 2));
+
       const response = await fetch(`${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`, {
         method: 'PUT',
         headers: {
@@ -185,11 +212,13 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
         body: JSON.stringify(personaParaAPI)
       });
 
+      console.log('Response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('Resultado:', result);
         alert(result.message || 'Persona actualizada exitosamente');
         
-      
         if (result.data) {
           const personaActualizada = {
             id: result.data.id,
@@ -197,11 +226,11 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             segundo_nombre: result.data.secondName || '',
             apellidos: result.data.lastNames,
             fecha_nacimiento: result.data.birthDate,
-            genero: mapGender(result.data.gender),
+            genero: mapGender(result.data.gender, false),
             correo: result.data.email,
             celular: result.data.phone,
             nro_documento: result.data.documentNumber,
-            tipo_documento: mapDocumentType(result.data.documentType),
+            tipo_documento: mapDocumentType(result.data.documentType, false),
             foto: result.data.photo || formData.foto
           };
           setFormData(personaActualizada);
@@ -217,15 +246,19 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al conectar con la API');
+    } finally {
+      setGuardando(false);
     }
   };
 
-  const handleEliminar = async () => {
+  const handleEliminar = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const confirmar = window.confirm('¿Está seguro de eliminar esta persona?');
     if (!confirmar) return;
 
     try {
-      // DELETE usando el número de documento
       const response = await fetch(`${API_ENDPOINTS.DELETE_PERSON}/${formData.nro_documento}`, {
         method: 'DELETE'
       });
@@ -258,7 +291,11 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
         </button>
       </div>
 
-      <form onSubmit={handleGuardar} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      {/* Formulario - solo onSubmit si está en modo edición */}
+      <form 
+        onSubmit={handleGuardar} 
+        className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start"
+      >
         {/* Columna izquierda */}
         <div className="space-y-3 bg-white border border-blue-300 rounded p-4">
           <div>
@@ -271,7 +308,6 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
                 errores.tipo_documento ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             >
               <option value="">Seleccione...</option>
               <option value="Cédula">Cédula</option>
@@ -285,12 +321,11 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="text"
               name="nro_documento"
-              value={formData.nro_documento}
+              value={formData.nro_documento || ''}
               onChange={handleChange}
               maxLength="10"
               className="border border-blue-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none bg-gray-100"
               disabled
-              required
             />
             {errores.nro_documento && <p className="text-red-500 text-sm mt-1">{errores.nro_documento}</p>}
           </div>
@@ -300,14 +335,13 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="text"
               name="primer_nombre"
-              value={formData.primer_nombre}
+              value={formData.primer_nombre || ''}
               onChange={handleChange}
               maxLength="30"
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errores.primer_nombre ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             />
             {errores.primer_nombre && <p className="text-red-500 text-sm mt-1">{errores.primer_nombre}</p>}
           </div>
@@ -317,7 +351,7 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="text"
               name="segundo_nombre"
-              value={formData.segundo_nombre}
+              value={formData.segundo_nombre || ''}
               onChange={handleChange}
               maxLength="30"
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
@@ -333,14 +367,13 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="text"
               name="apellidos"
-              value={formData.apellidos}
+              value={formData.apellidos || ''}
               onChange={handleChange}
               maxLength="60"
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errores.apellidos ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             />
             {errores.apellidos && <p className="text-red-500 text-sm mt-1">{errores.apellidos}</p>}
           </div>
@@ -352,18 +385,17 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="date"
               name="fecha_nacimiento"
-              value={formData.fecha_nacimiento}
+              value={formData.fecha_nacimiento || ''}
               onChange={handleChange}
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errores.fecha_nacimiento ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             />
             {errores.fecha_nacimiento && <p className="text-red-500 text-sm mt-1">{errores.fecha_nacimiento}</p>}
           </div>
 
-                    <div>
+          <div>
             <label className="block font-medium text-blue-900">Género:</label>
             <select
               name="genero"
@@ -373,7 +405,6 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
                 errores.genero ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             >
               <option value="">Seleccione...</option>
               <option value="Masculino">Masculino</option>
@@ -389,13 +420,12 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="email"
               name="correo"
-              value={formData.correo}
+              value={formData.correo || ''}
               onChange={handleChange}
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errores.correo ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             />
             {errores.correo && <p className="text-red-500 text-sm mt-1">{errores.correo}</p>}
           </div>
@@ -405,20 +435,19 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
             <input
               type="text"
               name="celular"
-              value={formData.celular}
+              value={formData.celular || ''}
               onChange={handleChange}
               maxLength="10"
               className={`border p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errores.celular ? 'border-red-500' : 'border-blue-300'
               }`}
               disabled={!modoEdicion}
-              required
             />
             {errores.celular && <p className="text-red-500 text-sm mt-1">{errores.celular}</p>}
           </div>
         </div>
 
-        {/* Columna derecha: foto - CENTRADA */}
+        {/* Columna derecha: foto */}
         <div className="flex flex-col items-center justify-center bg-white border border-blue-300 rounded p-4 h-full">
           <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-blue-300 mb-3 flex items-center justify-center bg-blue-50">
             {formData.foto ? (
@@ -446,44 +475,53 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
           )}
         </div>
 
-        {/* Botones de acción */}
-        <div className="col-span-1 md:col-span-2 mt-4 flex gap-2">
-          {!modoEdicion ? (
-            <>
-              <button
-                type="button"
-                onClick={handleEditar}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded transition-colors"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={handleEliminar}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition-colors"
-              >
-                Eliminar
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors"
-              >
-                Guardar
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelar}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded transition-colors"
-              >
-                Cancelar
-              </button>
-            </>
-          )}
-        </div>
+        {/* Botones de acción - FUERA del grid para evitar problemas */}
       </form>
+
+      {/* Botones FUERA del form */}
+      <div className="mt-4 flex gap-2">
+        {!modoEdicion ? (
+          <>
+            <button
+              type="button"
+              onClick={handleEditar}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded transition-colors"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={handleEliminar}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition-colors"
+            >
+              Eliminar
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleGuardar}
+              disabled={guardando}
+              className={`px-6 py-2 rounded transition-colors text-white ${
+                guardando 
+                  ? 'bg-blue-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {guardando ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelar}
+              disabled={guardando}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded transition-colors"
+            >
+              Cancelar
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };

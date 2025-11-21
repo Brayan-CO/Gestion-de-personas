@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/apiConfig';
 import { mapPersonFromAPI } from '../utils/personMapper';
 
-const PersonList = ({ onSeleccionar }) => {
+const ListaPersonas = ({ onSeleccionar }) => {
   const [personas, setPersonas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const cargaInicial = useRef(false);
 
   useEffect(() => {
+    if (cargaInicial.current) return;
+    cargaInicial.current = true;
+    
     cargarPersonas();
   }, []);
 
@@ -18,39 +22,48 @@ const PersonList = ({ onSeleccionar }) => {
       const response = await fetch(API_ENDPOINTS.READ_PERSONS);
       if (response.ok) {
         const result = await response.json();
-        // Mapear los datos del backend al formato del frontend
-        const personasMapeadas = result.data.map(mapPersonFromAPI);
-        setPersonas(personasMapeadas);
+        
+        // Debug: ver qué devuelve la API
+        console.log('Respuesta API:', result);
+        
+        // Verificar que result.data sea un array
+        if (result.data && Array.isArray(result.data)) {
+          const personasMapeadas = result.data.map(mapPersonFromAPI);
+          setPersonas(personasMapeadas);
+        } else if (Array.isArray(result)) {
+          // Si la respuesta es directamente un array
+          const personasMapeadas = result.map(mapPersonFromAPI);
+          setPersonas(personasMapeadas);
+        } else {
+          console.error('Formato de respuesta inesperado:', result);
+          setPersonas([]);
+          setError('Formato de datos inesperado');
+        }
       } else {
         setError('Error al cargar las personas');
+        setPersonas([]);
       }
     } catch (error) {
       console.error('Error:', error);
       setError('Error al conectar con la API');
+      setPersonas([]);
     } finally {
       setCargando(false);
     }
   };
 
   const recargarLista = async () => {
-    setCargando(true);
-    try {
-      const response = await fetch('http://localhost:3002/persons');
-      if (response.ok) {
-        const data = await response.json();
-        setPersonas(data);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setCargando(false);
-    }
+    // Resetear el ref para permitir la recarga manual
+    await cargarPersonas();
   };
 
   if (cargando) {
     return (
       <div className="bg-white border border-gray-300 rounded-lg p-6">
-        <p className="text-center text-gray-600">Cargando personas...</p>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-center text-gray-600">Cargando personas...</p>
+        </div>
       </div>
     );
   }
@@ -69,10 +82,16 @@ const PersonList = ({ onSeleccionar }) => {
     );
   }
 
-  if (personas.length === 0) {
+  if (!personas || personas.length === 0) {
     return (
       <div className="bg-white border border-gray-300 rounded-lg p-6">
         <p className="text-center text-gray-600">No hay personas registradas</p>
+        <button 
+          onClick={recargarLista}
+          className="mt-3 mx-auto block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+        >
+          Actualizar
+        </button>
       </div>
     );
   }
@@ -92,9 +111,9 @@ const PersonList = ({ onSeleccionar }) => {
       </div>
       
       <div className="grid gap-2 max-h-96 overflow-y-auto">
-        {personas.map((persona) => (
+        {personas.map((persona, index) => (
           <div
-            key={persona.nro_documento}
+            key={persona.nro_documento || index}
             onClick={() => onSeleccionar(persona)}
             className="border border-gray-300 p-3 rounded hover:bg-blue-50 hover:border-blue-400 cursor-pointer transition-colors"
           >
@@ -141,4 +160,4 @@ const PersonList = ({ onSeleccionar }) => {
   );
 };
 
-export default PersonList;
+export default ListaPersonas;
