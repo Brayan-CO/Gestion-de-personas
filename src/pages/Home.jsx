@@ -1,19 +1,28 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import PersonForm from '../components/personForm'
 import ConsultaDoc from '../components/consultDoc'
 import ListaPersonas from '../components/personList'
 import DetallePersona from '../components/personDetail'
 import BusquedaNatural from '../components/naturalSearch'
-import useFeatures from '../utils/featuresFlags'
+import { checkLLM } from '../utils/checkllm'
 
 function Home() {
-  const { rag_enabled, loading } = useFeatures();
   const [consulta, setConsulta] = useState("");
   const [modo, setModo] = useState("inicio");
   const [personaSeleccionada, setPersonaSeleccionada] = useState(null);
   const [documentoBuscar, setDocumentoBuscar] = useState("");
   const [consultaNatural, setConsultaNatural] = useState("");
+  const [llmDisponible, setLlmDisponible] = useState(null); // null = verificando
   const listaPersonasRef = useRef(null);
+
+  // Verificar LLM al cargar
+  useEffect(() => {
+    const verificar = async () => {
+      const result = await checkLLM();
+      setLlmDisponible(result.status);
+    };
+    verificar();
+  }, []);
 
   const cerrarFormulario = () => {
     setModo("inicio");
@@ -28,17 +37,17 @@ function Home() {
     }
   };
 
-  const buscarNatural = () => {
-    if (!rag_enabled) {
-      alert('La función de búsqueda natural no está disponible en este momento');
-      return;
-    }
-    
-    if (consultaNatural.trim()) {
-      setModo("buscar_nl");
-      setConsulta(`Búsqueda natural: ${consultaNatural}`);
-    }
-  };
+ const buscarNatural = () => {
+  if (!llmDisponible) {
+    alert('La función de búsqueda natural no está disponible en este momento');
+    return;
+  }
+  
+  if (consultaNatural.trim()) {
+    setModo("buscar_nl");
+    setConsulta(`Búsqueda natural: ${consultaNatural}`);
+  }
+};
 
   const seleccionarPersonaDeLista = (persona) => {
     setPersonaSeleccionada(persona);
@@ -51,7 +60,7 @@ function Home() {
   };
 
   return (
-    <div className="min-h-full p-6 space-y-4">
+    <div className="p-6 space-y-4">
       {consulta && (
         <div className="bg-blue-50 border-l-4 border-blue-600 p-3 rounded">
           <p className="text-blue-800 font-medium">
@@ -90,8 +99,8 @@ function Home() {
           </button>
         </div>
         
-        {/*búsqueda natural*/}
-        {rag_enabled && (
+        {/* Búsqueda natural - Solo visible si LLM está disponible */}
+        {llmDisponible === true && (
           <div className='flex gap-2'>
             <input
               type="text"
@@ -110,14 +119,24 @@ function Home() {
           </div>
         )}
 
-        {/* Mensaje informativo cuando RAG está deshabilitado */}
-        {!loading && !rag_enabled && modo === "inicio" && (
+        {/* Mensaje cuando LLM no está disponible */}
+        {llmDisponible === false && modo === "inicio" && (
           <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
             <p className="text-sm text-yellow-800 flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              La función de búsqueda en lenguaje natural no está disponible actualmente
+              La búsqueda en lenguaje natural no está disponible actualmente
+            </p>
+          </div>
+        )}
+
+        {/* Verificando LLM */}
+        {llmDisponible === null && (
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-3">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+              Verificando servicio de IA...
             </p>
           </div>
         )}
@@ -138,7 +157,7 @@ function Home() {
       )}
 
       {/* Búsqueda natural */}
-      {modo === "buscar_nl" && rag_enabled && (
+      {modo === "buscar_nl" && llmDisponible === true && (
         <BusquedaNatural 
           consulta={consultaNatural}
           onSeleccionar={seleccionarPersonaDeLista}

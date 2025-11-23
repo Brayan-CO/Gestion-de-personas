@@ -24,8 +24,10 @@ const Log = () => {
     setError(null);
     try {
       const response = await fetch(API_ENDPOINTS.LOGS);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('Logs cargados:', result);
         setLogs(result.data);
         setLogsFiltrados(result.data);
       } else {
@@ -128,9 +130,11 @@ const Log = () => {
     const colores = {
       'PERSON_CREATED': 'bg-green-100 text-green-800 border-green-300',
       'PERSONS_LIST_REQUESTED': 'bg-blue-100 text-blue-800 border-blue-300',
-      'PERSON_RETRIEVED': 'bg-blue-100 text-blue-800 border-blue-300',
+      'PERSON_SEARCH_SUCCESS': 'bg-blue-100 text-blue-800 border-blue-300',
       'PERSON_UPDATED': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      'PERSON_DELETED': 'bg-red-100 text-red-800 border-red-300'
+      'PERSON_DELETED': 'bg-red-100 text-red-800 border-red-300',
+      'PERSON_SEARCH_NOT_FOUND': 'bg-gray-100 text-gray-800 border-gray-300',
+      'LLM_CONSULT': 'bg-purple-100 text-purple-800 border-purple-300'
     };
     return colores[action] || 'bg-gray-100 text-gray-800 border-gray-300';
   };
@@ -148,7 +152,7 @@ const Log = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
       ),
-      'PERSON_RETRIEVED': (
+      'PERSON_SEARCH_SUCCESS': (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -163,6 +167,16 @@ const Log = () => {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
+      ),
+      'PERSON_SEARCH_NOT_FOUND': (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-1.414 1.414L15.172 6l-1.414 1.414L12.344 6l-1.414 1.414L9.515 6l-1.414 1.414L6.686 6l-1.414 1.414L4.243 6l-1.414 1.414L2 6" />
+        </svg>
+      ),
+      'LLM_CONSULT': (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2z" />
+        </svg>
       )
     };
     return iconos[action] || null;
@@ -172,9 +186,11 @@ const Log = () => {
     const traducciones = {
       'PERSON_CREATED': 'Persona Creada',
       'PERSONS_LIST_REQUESTED': 'Lista Solicitada',
-      'PERSON_RETRIEVED': 'Persona Consultada',
+      'PERSON_SEARCH_SUCCESS': 'Persona Consultada',
       'PERSON_UPDATED': 'Persona Actualizada',
-      'PERSON_DELETED': 'Persona Eliminada'
+      'PERSON_DELETED': 'Persona Eliminada',
+      'PERSON_SEARCH_NOT_FOUND': 'Persona No Encontrada',
+      'LLM_CONSULT': 'Consulta LLM'
     };
     return traducciones[action] || action;
   };
@@ -400,11 +416,11 @@ const Log = () => {
 
         <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
           <div className="flex items-center gap-2">
-            {obtenerIconoAccion('PERSON_RETRIEVED')}
+            {obtenerIconoAccion('PERSON_SEARCH_SUCCESS')}
             <div>
               <p className="text-sm text-cyan-600 font-medium">Consultadas</p>
               <p className="text-2xl font-bold text-cyan-800">
-                {logsFiltrados.filter(l => l.action === 'PERSON_RETRIEVED').length}
+                {logsFiltrados.filter(l => l.action === 'PERSON_SEARCH_SUCCESS').length}
               </p>
             </div>
           </div>

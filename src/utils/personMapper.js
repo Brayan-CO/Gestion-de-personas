@@ -48,12 +48,12 @@ export const mapPersonFromAPI = (person) => {
     segundo_nombre: person.secondName || '',
     apellidos: person.lastNames,
     fecha_nacimiento: person.birthDate,
-    genero: mapGender(person.gender, false), 
+    genero: mapGender(person.gender, false),
     correo: person.email,
     celular: person.phone,
     nro_documento: person.documentNumber,
-    tipo_documento: mapDocumentType(person.documentType, false), 
-    foto: person.photo || null
+    tipo_documento: mapDocumentType(person.documentType, false),
+    foto: person.photoUrl || person.photo || null 
   };
 };
 

@@ -8,7 +8,7 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
   const [formData, setFormData] = useState(personaInicial);
   const [datosOriginales, setDatosOriginales] = useState(personaInicial);
   const [errores, setErrores] = useState({});
-  const [guardando, setGuardando] = useState(false); // Nuevo estado para evitar doble submit
+  const [guardando, setGuardando] = useState(false); 
 
   useEffect(() => {
     console.log('formData actual:', formData);
@@ -143,113 +143,95 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
   };
 
   const handleGuardar = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('handleGuardar llamado'); // Debug
-    console.log('modoEdicion:', modoEdicion); // Debug
-    
-    // Solo procesar si estamos en modo edición
-    if (!modoEdicion) {
-      console.log('No está en modo edición, ignorando submit');
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!modoEdicion) return;
+  if (guardando) return;
+
+  if (!validarFormulario()) {
+    alert("Por favor corrija los errores en el formulario");
+    return;
+  }
+
+  setGuardando(true);
+
+  try {
+    const formDataToSend = new FormData();
+
+    // Campos normales
+    formDataToSend.append("firstName", formData.primer_nombre);
+    formDataToSend.append("secondName", formData.segundo_nombre || "");
+    formDataToSend.append("lastNames", formData.apellidos);
+    formDataToSend.append("birthDate", formData.fecha_nacimiento);
+    formDataToSend.append("gender", mapGender(formData.genero));
+    formDataToSend.append("email", formData.correo);
+    formDataToSend.append("phone", formData.celular);
+    formDataToSend.append("documentNumber", formData.nro_documento);
+    formDataToSend.append("documentType", mapDocumentType(formData.tipo_documento));
+
+    // FOTO (solo si se cambió)
+    if (formData.foto instanceof File) {
+      formDataToSend.append("photoURL", formData.foto);
+    }
+
+    await actualizarPersona(formDataToSend);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al actualizar la persona");
+    setGuardando(false);
+  }
+};
+
+
+  const actualizarPersona = async (formDataToSend) => {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`,
+      {
+        method: "PUT",
+        body: formDataToSend
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.message || "Error al actualizar la persona");
       return;
     }
 
-    // Evitar doble submit
-    if (guardando) {
-      console.log('Ya se está guardando, ignorando');
-      return;
-    }
-    
-    if (!validarFormulario()) {
-      alert("Por favor corrija los errores en el formulario");
-      return;
-    }
+    alert(result.message || "Persona actualizada exitosamente");
 
-    setGuardando(true); // Bloquear mientras guarda
-    
-    try {
-      const personaParaAPI = {
-        firstName: formData.primer_nombre,
-        secondName: formData.segundo_nombre || undefined,
-        lastNames: formData.apellidos,
-        birthDate: formData.fecha_nacimiento,
-        gender: mapGender(formData.genero),
-        email: formData.correo,
-        phone: formData.celular,
-        documentNumber: formData.nro_documento,
-        documentType: mapDocumentType(formData.tipo_documento),
+    if (result.data) {
+      const personaActualizada = {
+        id: result.data.id,
+        primer_nombre: result.data.firstName,
+        segundo_nombre: result.data.secondName || "",
+        apellidos: result.data.lastNames,
+        fecha_nacimiento: result.data.birthDate,
+        genero: mapGender(result.data.gender, false),
+        correo: result.data.email,
+        celular: result.data.phone,
+        nro_documento: result.data.documentNumber,
+        tipo_documento: mapDocumentType(result.data.documentType, false),
+        foto: result.data.photo || formData.foto || result.data.photoURL || null
       };
 
-      // Manejo de foto si existe
-      if (formData.foto && typeof formData.foto !== 'string') {
-        const reader = new FileReader();
-        reader.readAsDataURL(formData.foto);
-        reader.onload = async () => {
-          personaParaAPI.photo = reader.result;
-          await actualizarPersona(personaParaAPI);
-        };
-      } else {
-        await actualizarPersona(personaParaAPI);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al actualizar la persona');
-      setGuardando(false);
+      setFormData(personaActualizada);
+      setDatosOriginales(personaActualizada);
     }
-  };
 
-  const actualizarPersona = async (personaParaAPI) => {
-    try {
-      console.log('Enviando PUT a:', `${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`);
-      console.log('Body:', JSON.stringify(personaParaAPI, null, 2));
+    setModoEdicion(false);
+    if (onActualizar) onActualizar();
 
-      const response = await fetch(`${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(personaParaAPI)
-      });
-
-      console.log('Response status:', response.status);
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Resultado:', result);
-        alert(result.message || 'Persona actualizada exitosamente');
-        
-        if (result.data) {
-          const personaActualizada = {
-            id: result.data.id,
-            primer_nombre: result.data.firstName,
-            segundo_nombre: result.data.secondName || '',
-            apellidos: result.data.lastNames,
-            fecha_nacimiento: result.data.birthDate,
-            genero: mapGender(result.data.gender, false),
-            correo: result.data.email,
-            celular: result.data.phone,
-            nro_documento: result.data.documentNumber,
-            tipo_documento: mapDocumentType(result.data.documentType, false),
-            foto: result.data.photo || formData.foto
-          };
-          setFormData(personaActualizada);
-          setDatosOriginales(personaActualizada);
-        }
-        
-        setModoEdicion(false);
-        if (onActualizar) onActualizar();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Error al actualizar la persona');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al conectar con la API');
-    } finally {
-      setGuardando(false);
-    }
-  };
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al conectar con la API");
+  } finally {
+    setGuardando(false);
+  }
+};
 
   const handleEliminar = async (e) => {
     e.preventDefault();
@@ -475,10 +457,10 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
           )}
         </div>
 
-        {/* Botones de acción - FUERA del grid para evitar problemas */}
+        
       </form>
 
-      {/* Botones FUERA del form */}
+      
       <div className="mt-4 flex gap-2">
         {!modoEdicion ? (
           <>

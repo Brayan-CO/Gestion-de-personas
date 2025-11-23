@@ -131,70 +131,65 @@ const PersonForm = ({ onClose, onActualizar }) => {
     return formularioValido;
   };
 
-   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validarFormulario()) {
-      alert("Por favor corrija los errores en el formulario");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!validarFormulario()) {
+    alert("Por favor corrija los errores en el formulario");
+    return;
+  }
+
+  try {
+    const formDataToSend = new FormData();
+
+    // Campos normales (TODOS deben ir al FormData)
+    formDataToSend.append("firstName", formData.primer_nombre);
+    formDataToSend.append("secondName", formData.segundo_nombre || "");
+    formDataToSend.append("lastNames", formData.apellidos);
+    formDataToSend.append("birthDate", formData.fecha_nacimiento);
+    formDataToSend.append("gender", mapGender(formData.genero));
+    formDataToSend.append("email", formData.correo);
+    formDataToSend.append("phone", formData.celular);
+    formDataToSend.append("documentNumber", formData.nro_documento);
+    formDataToSend.append("documentType", mapDocumentType(formData.tipo_documento));
+
+    // Foto
+    if (formData.foto) {
+      formDataToSend.append("photoURL", formData.foto); 
+    }
+
+    await enviarPersona(formDataToSend);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al guardar la persona");
+  }
+};
+
+
+const enviarPersona = async (formDataToSend) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.CREATE_PERSON, {
+      method: "POST",
+      body: formDataToSend // NO AGREGAR HEADERS
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.errors?.[0]?.message || "Error al crear la persona");
       return;
     }
 
-    try {
-    
-      const personaParaAPI = {
-        firstName: formData.primer_nombre,
-        secondName: formData.segundo_nombre || undefined,
-        lastNames: formData.apellidos,
-        birthDate: formData.fecha_nacimiento,
-        gender: mapGender(formData.genero),
-        email: formData.correo,
-        phone: formData.celular,
-        documentNumber: formData.nro_documento,
-        documentType: mapDocumentType(formData.tipo_documento),
-      };
+    alert(data.message || "Persona creada exitosamente");
+    if (onActualizar) onActualizar();
+    onClose();
 
-    
-      if (formData.foto) {
-        const reader = new FileReader();
-        reader.readAsDataURL(formData.foto);
-        reader.onload = async () => {
-          personaParaAPI.photo = reader.result;
-          await enviarPersona(personaParaAPI);
-        };
-      } else {
-        await enviarPersona(personaParaAPI);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al guardar la persona');
-    }
-  };
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al conectar con la API");
+  }
+};
 
-  const enviarPersona = async (personaParaAPI) => {
-    try {
-      console.log('Enviando persona al backend:', personaParaAPI);
-      const response = await fetch(API_ENDPOINTS.CREATE_PERSON, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(personaParaAPI)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(result.message || 'Persona creada exitosamente');
-        if (onActualizar) onActualizar();
-        onClose();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.errors?.[0].message || 'Error al crear la persona');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al conectar con la API');
-    }
-  };
 
 
   return (

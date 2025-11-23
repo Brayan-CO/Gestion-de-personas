@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/apiConfig';
 import { mapPersonFromAPI, mapGender, mapDocumentType } from '../utils/personMapper';
 import { validaciones } from '../utils/validations';
@@ -20,9 +20,11 @@ const ConsultDoc = ({ onClose, documento, onActualizar }) => {
   const [datosOriginales, setDatosOriginales] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [errores, setErrores] = useState({});
-
+  const cargaInicialRef = useRef(false);
 
   useEffect(() => {
+    if (cargaInicialRef.current) return;
+    cargaInicialRef.current = true;
     const cargarPersona = async () => {
       try {
      
@@ -56,6 +58,34 @@ const ConsultDoc = ({ onClose, documento, onActualizar }) => {
     cargarPersona();
   }, [documento, onClose]);
 
+  const validarCampo = (name, value) => {
+    let resultado = { valido: true, mensaje: "" };
+
+    switch (name) {
+      case "primer_nombre":
+        resultado = validaciones.validarPrimerNombre(value);
+        break;
+      case "segundo_nombre":
+        resultado = validaciones.validarSegundoNombre(value);
+        break;
+      case "apellidos":
+        resultado = validaciones.validarApellidos(value);
+        break;
+      case "celular":
+        resultado = validaciones.validarCelular(value);
+        break;
+      case "nro_documento":
+        resultado = validaciones.validarDocumento(value);
+        break;
+      case "correo":
+        resultado = validaciones.validarEmail(value);
+        break;
+      default:
+        break;
+    }
+
+    return resultado;
+  };
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "foto") {
@@ -132,55 +162,60 @@ const validarFormulario = () => {
 
 
 
-  const handleGuardar = async (e) => {
-    e.preventDefault();
-    
-    if (!validarFormulario()) {
-      alert("Por favor corrija los errores en el formulario");
-      return;
+const handleGuardar = async (e) => {
+  e.preventDefault();
+  
+  if (!validarFormulario()) {
+    alert("Por favor corrija los errores en el formulario");
+    return;
+  }
+
+  try {
+    const formDataToSend = new FormData();
+
+    // Campos normales
+    formDataToSend.append("firstName", formData.primer_nombre);
+    formDataToSend.append("secondName", formData.segundo_nombre || "");
+    formDataToSend.append("lastNames", formData.apellidos);
+    formDataToSend.append("birthDate", formData.fecha_nacimiento);
+    formDataToSend.append("gender", mapGender(formData.genero));
+    formDataToSend.append("email", formData.correo);
+    formDataToSend.append("phone", formData.celular);
+    formDataToSend.append("documentNumber", formData.nro_documento);
+    formDataToSend.append("documentType", mapDocumentType(formData.tipo_documento));
+
+    // Foto solo si es nueva
+    if (formData.foto instanceof File) {
+      formDataToSend.append("photoURL", formData.foto);
     }
-    
-    try {
-     
-      const personaParaAPI = {
-        firstName: formData.primer_nombre,
-        secondName: formData.segundo_nombre || '',
-        lastNames: formData.apellidos,
-        birthDate: formData.fecha_nacimiento,
-        gender: mapGender(formData.genero),
-        email: formData.correo,
-        phone: formData.celular,
-        documentNumber: formData.nro_documento,
-        documentType: mapDocumentType(formData.tipo_documento),
-      };
 
-
-      const response = await fetch(`${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(personaParaAPI)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(result.message || 'Persona actualizada exitosamente');
-        
-        const personaActualizada = mapPersonFromAPI(result.data);
-        setFormData(personaActualizada);
-        setDatosOriginales(personaActualizada);
-        setModoEdicion(false);
-        if (onActualizar) onActualizar();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Error al actualizar la persona');
+    const response = await fetch(
+      `${API_ENDPOINTS.UPDATE_PERSON}/${formData.nro_documento}`,
+      {
+        method: "PUT",
+        body: formDataToSend, 
       }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al conectar con la API');
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      alert(result.message || "Persona actualizada exitosamente");
+
+      const personaActualizada = mapPersonFromAPI(result.data);
+      setFormData(personaActualizada);
+      setDatosOriginales(personaActualizada);
+      setModoEdicion(false);
+      if (onActualizar) onActualizar();
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message || "Error al actualizar la persona");
     }
-  };
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al conectar con la API");
+  }
+};
+
 
   const handleEliminar = async () => {
     const confirmar = window.confirm('¿Está seguro de eliminar esta persona?');
@@ -391,7 +426,9 @@ const validarFormulario = () => {
           )}
         </div>
 
-        {/* Botones de acción */}
+        
+      </form>
+      {/* Botones de acción */}
         <div className="col-span-1 md:col-span-2 mt-4 flex gap-2">
           {!modoEdicion ? (
             <>
@@ -414,6 +451,7 @@ const validarFormulario = () => {
             <>
               <button
                 type="submit"
+                onClick={handleGuardar}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors"
               >
                 Guardar
@@ -428,7 +466,6 @@ const validarFormulario = () => {
             </>
           )}
         </div>
-      </form>
     </div>
   );
 };
