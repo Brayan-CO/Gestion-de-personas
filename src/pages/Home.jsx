@@ -4,7 +4,7 @@ import ConsultaDoc from '../components/consultDoc'
 import ListaPersonas from '../components/personList'
 import DetallePersona from '../components/personDetail'
 import BusquedaNatural from '../components/naturalSearch'
-import { checkLLM } from '../utils/checkllm'
+import { checkLLM } from '../utils/checkllm';
 
 function Home() {
   const [consulta, setConsulta] = useState("");

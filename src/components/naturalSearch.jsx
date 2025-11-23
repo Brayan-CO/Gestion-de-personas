@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/apiConfig';
-import { checkLLM } from '../utils/checkllm';
+import { checkLLM } from '../utils/checkLLM';
 
 const BusquedaNatural = ({ onSeleccionar, consulta }) => {
   const [personas, setPersonas] = useState([]);
-  const [respuestaIA, setRespuestaIA] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
-  const [llmDisponible, setLlmDisponible] = useState(null); // null = verificando, true/false = resultado
+  const [llmDisponible, setLlmDisponible] = useState(null);
   const cargaInicial = useRef(false);
 
   // Verificar si el LLM está disponible al montar el componente
@@ -17,7 +16,6 @@ const BusquedaNatural = ({ onSeleccionar, consulta }) => {
       const result = await checkLLM();
       setLlmDisponible(result.status);
       
-      // Si está disponible y hay consulta, realizar búsqueda
       if (result.status && consulta && !cargaInicial.current) {
         cargaInicial.current = true;
         realizarBusqueda();
@@ -51,28 +49,31 @@ const BusquedaNatural = ({ onSeleccionar, consulta }) => {
         
         console.log('Respuesta RAG:', result);
         
-        setRespuestaIA(result.answer || '');
-        
-        const personasFiltradas = filtrarPersonasPorAnswer(result.personas, result.answer);
-        
-        const personasMapeadas = personasFiltradas.map(persona => ({
-          id: persona.id,
-          primer_nombre: persona.primer_nombre,
-          segundo_nombre: persona.segundo_nombre || '',
-          apellidos: persona.apellidos,
-          fecha_nacimiento: persona.fecha_nacimiento,
-          genero: persona.genero,
-          correo: persona.correo,
-          celular: persona.celular || persona.phone,
-          nro_documento: persona.nro_documento,
-          tipo_documento: persona.tipo_documento,
-          foto: persona.foto
-        }));
-        
-        setPersonas(personasMapeadas);
-        
-        if (personasMapeadas.length === 0) {
-          setError('No se encontraron personas que coincidan con la búsqueda');
+        // La respuesta ahora es directamente un array de personas
+        if (Array.isArray(result)) {
+          // Mapear las personas al formato del frontend
+          const personasMapeadas = result.map(persona => ({
+            id: persona.id,
+            primer_nombre: persona.primer_nombre,
+            segundo_nombre: persona.segundo_nombre || '',
+            apellidos: persona.apellidos,
+            fecha_nacimiento: persona.fecha_nacimiento,
+            genero: persona.genero,
+            correo: persona.correo,
+            celular: persona.celular || persona.phone,
+            nro_documento: persona.nro_documento,
+            tipo_documento: persona.tipo_documento,
+            foto: persona.foto
+          }));
+          
+          setPersonas(personasMapeadas);
+          
+          if (personasMapeadas.length === 0) {
+            setError('No se encontraron personas que coincidan con la búsqueda');
+          }
+        } else {
+          setError('Formato de respuesta inesperado');
+          console.error('Respuesta no es un array:', result);
         }
       } else {
         setError('Error al realizar la búsqueda');
@@ -83,36 +84,6 @@ const BusquedaNatural = ({ onSeleccionar, consulta }) => {
     } finally {
       setCargando(false);
     }
-  };
-
-  const filtrarPersonasPorAnswer = (todasPersonas, answer) => {
-    if (!todasPersonas || !answer) return [];
-    
-    const answerNormalizado = normalizarTexto(answer);
-    
-    return todasPersonas.filter(persona => {
-      const nombreCompleto = `${persona.primer_nombre} ${persona.segundo_nombre || ''} ${persona.apellidos}`.trim();
-      const nombreCompletoNormalizado = normalizarTexto(nombreCompleto);
-      
-      const nombreCorto = `${persona.primer_nombre} ${persona.apellidos}`.trim();
-      const nombreCortoNormalizado = normalizarTexto(nombreCorto);
-      
-      const primerNombreNormalizado = normalizarTexto(persona.primer_nombre);
-      
-      return answerNormalizado.includes(nombreCompletoNormalizado) ||
-             answerNormalizado.includes(nombreCortoNormalizado) ||
-             answerNormalizado.includes(primerNombreNormalizado);
-    });
-  };
-
-  const normalizarTexto = (texto) => {
-    if (!texto) return '';
-    return texto
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
   };
 
   // Estado: Verificando LLM
@@ -183,91 +154,74 @@ const BusquedaNatural = ({ onSeleccionar, consulta }) => {
 
   // Estado: Resultados
   return (
-    <div className="space-y-4">
-      {/* Respuesta de la IA */}
-      {respuestaIA && (
-        <div className="bg-green-50 border border-green-300 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <div className="bg-green-600 rounded-full p-2">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-green-800 mb-2">Respuesta de la IA:</h3>
-              <p className="text-green-900 whitespace-pre-line">{respuestaIA}</p>
-            </div>
-          </div>
+    <div className="bg-white border border-gray-300 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">
+            Personas Encontradas ({personas.length})
+          </h2>
+          <p className="text-sm text-gray-600 italic mt-1">Consulta: "{consulta}"</p>
         </div>
-      )}
+        <button 
+          onClick={realizarBusqueda}
+          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+        >
+          Buscar de nuevo
+        </button>
+      </div>
 
-      {/* Lista de personas */}
-      <div className="bg-white border border-gray-300 rounded-lg p-4">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800">
-              Personas Encontradas ({personas.length})
-            </h2>
-            <p className="text-sm text-gray-600 italic mt-1">Consulta: "{consulta}"</p>
-          </div>
-          <button 
-            onClick={realizarBusqueda}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
-          >
-            Buscar de nuevo
-          </button>
+      {personas.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No se encontraron personas que coincidan con la consulta
         </div>
-
-        {personas.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No se encontraron personas que coincidan con la consulta
-          </div>
-        ) : (
-          <div className="grid gap-2 max-h-96 overflow-y-auto">
-            {personas.map((persona, index) => (
-              <div
-                key={persona.nro_documento || index}
-                onClick={() => onSeleccionar(persona)}
-                className="border border-gray-300 p-3 rounded hover:bg-green-50 hover:border-green-400 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-gray-100">
-                    {persona.foto ? (
-                      <img
-                        src={persona.foto}
-                        alt={`${persona.primer_nombre} ${persona.apellidos}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                        Sin foto
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">
-                      {persona.primer_nombre} {persona.segundo_nombre && persona.segundo_nombre + ' '}{persona.apellidos}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {persona.tipo_documento}: {persona.nro_documento}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {persona.correo}
-                    </p>
-                  </div>
-                  
-                  <div className="text-gray-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
+      ) : (
+        <div className="grid gap-2 max-h-96 overflow-y-auto">
+          {personas.map((persona, index) => (
+            <div
+              key={persona.nro_documento || index}
+              onClick={() => onSeleccionar(persona)}
+              className="border border-gray-300 p-3 rounded hover:bg-green-50 hover:border-green-400 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {/* Foto miniatura */}
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-gray-100">
+                  {persona.foto ? (
+                    <img
+                      src={persona.foto}
+                      alt={`${persona.primer_nombre} ${persona.apellidos}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                      Sin foto
+                    </div>
+                  )}
+                </div>
+                
+                {/* Información de la persona */}
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-800">
+                    {persona.primer_nombre} {persona.segundo_nombre && persona.segundo_nombre + ' '}{persona.apellidos}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {persona.tipo_documento}: {persona.nro_documento}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {persona.correo}
+                  </p>
+                </div>
+                
+                {/* Indicador visual */}
+                <div className="text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
