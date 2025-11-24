@@ -185,7 +185,7 @@ const handleGuardar = async (e) => {
 
     // Campos normales
     formDataToSend.append("firstName", formData.primer_nombre);
-    formDataToSend.append("secondName", formData.segundo_nombre || undefined);
+    formDataToSend.append("secondName", formData.segundo_nombre || "");
     formDataToSend.append("lastNames", formData.apellidos);
     formDataToSend.append("birthDate", formData.fecha_nacimiento);
     formDataToSend.append("gender", mapGender(formData.genero));
