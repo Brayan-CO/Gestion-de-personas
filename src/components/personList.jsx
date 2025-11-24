@@ -136,7 +136,7 @@ const ListaPersonas = ({ onSeleccionar }) => {
               {/* Información de la persona */}
               <div className="flex-1">
                 <p className="font-semibold text-gray-800">
-                  {persona.primer_nombre} {persona.segundo_nombre && persona.segundo_nombre + ' '}{persona.apellidos}
+                  {persona.primer_nombre}{' '}{persona.apellidos}
                 </p>
                 <p className="text-sm text-gray-600">
                   {persona.tipo_documento}: {persona.nro_documento}

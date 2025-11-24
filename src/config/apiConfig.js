@@ -11,6 +11,6 @@ export const API_ENDPOINTS = {
   DELETE_LOGS: 'http://localhost:3005/logs',           // DELETE
   
   // MML
-  RAG: 'http://localhost:8000/rag',    
+  RAG: 'http://localhost:8000/rag_full',    
   CHECKLLM: 'http://localhost:8000/health'                // GET
 };

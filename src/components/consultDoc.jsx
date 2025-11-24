@@ -36,8 +36,17 @@ const ConsultDoc = ({ onClose, documento, onActualizar }) => {
           if (result.data) {
     
             const personaMapeada = mapPersonFromAPI(result.data);
-            setFormData(personaMapeada);
-            setDatosOriginales(personaMapeada);
+            const fechaNormalizada = personaMapeada.fecha_nacimiento
+              ? personaMapeada.fecha_nacimiento.split("T")[0]
+              : "";
+
+            const personaConFecha = {
+              ...personaMapeada,
+              fecha_nacimiento: fechaNormalizada
+            };
+
+            setFormData(personaConFecha);
+            setDatosOriginales(personaConFecha);
           } else {
             alert('Persona no encontrada');
             onClose();
@@ -88,7 +97,8 @@ const ConsultDoc = ({ onClose, documento, onActualizar }) => {
   };
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    if (name === "foto") {
+    console.log("Cambio en el campo:", name, value, files);
+    if (name === "photoUrl" || name === "foto") {
       if (!resultado.valido) {
         setErrores({ ...errores, [name]: resultado.mensaje });
         e.target.value = "";
@@ -175,7 +185,7 @@ const handleGuardar = async (e) => {
 
     // Campos normales
     formDataToSend.append("firstName", formData.primer_nombre);
-    formDataToSend.append("secondName", formData.segundo_nombre || "");
+    formDataToSend.append("secondName", formData.segundo_nombre || undefined);
     formDataToSend.append("lastNames", formData.apellidos);
     formDataToSend.append("birthDate", formData.fecha_nacimiento);
     formDataToSend.append("gender", mapGender(formData.genero));
@@ -184,9 +194,9 @@ const handleGuardar = async (e) => {
     formDataToSend.append("documentNumber", formData.nro_documento);
     formDataToSend.append("documentType", mapDocumentType(formData.tipo_documento));
 
-    // Foto solo si es nueva
-    if (formData.foto instanceof File) {
-      formDataToSend.append("photoURL", formData.foto);
+    // Foto
+    if (formData.foto) {
+      formDataToSend.append("photoUrl", formData.foto); 
     }
 
     const response = await fetch(
@@ -322,7 +332,7 @@ const handleGuardar = async (e) => {
             <input
               type="text"
               name="segundo_nombre"
-              value={formData.segundo_nombre}
+              value={formData.segundo_nombre == "undefined" ? "" : formData.segundo_nombre}
               onChange={handleChange}
               className="border border-blue-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-400 focus:outline-none"
               disabled={!modoEdicion}

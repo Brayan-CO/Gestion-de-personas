@@ -5,8 +5,18 @@ import { validaciones } from '../utils/validations';
 
 const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
   const [modoEdicion, setModoEdicion] = useState(false);
-  const [formData, setFormData] = useState(personaInicial);
-  const [datosOriginales, setDatosOriginales] = useState(personaInicial);
+  const [formData, setFormData] = useState({
+  ...personaInicial,
+  fecha_nacimiento: personaInicial.fecha_nacimiento
+    ? personaInicial.fecha_nacimiento.substring(0, 10)
+    : ""
+});
+  const [datosOriginales, setDatosOriginales] = useState({
+  ...personaInicial,
+  fecha_nacimiento: personaInicial.fecha_nacimiento
+    ? personaInicial.fecha_nacimiento.substring(0, 10)
+    : ""
+});
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false); 
 
@@ -15,7 +25,7 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     console.log('Tipo documento:', formData.tipo_documento);
     console.log('Género:', formData.genero);
   }, [formData, modoEdicion]);
-
+  
   const validarCampo = (name, value) => {
     let resultado = { valido: true, mensaje: "" };
 
@@ -159,9 +169,9 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
   try {
     const formDataToSend = new FormData();
 
-    // Campos normales
+    // Campos normales (TODOS deben ir al FormData)
     formDataToSend.append("firstName", formData.primer_nombre);
-    formDataToSend.append("secondName", formData.segundo_nombre || "");
+    formDataToSend.append("secondName", formData.segundo_nombre || undefined);
     formDataToSend.append("lastNames", formData.apellidos);
     formDataToSend.append("birthDate", formData.fecha_nacimiento);
     formDataToSend.append("gender", mapGender(formData.genero));
@@ -170,9 +180,9 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     formDataToSend.append("documentNumber", formData.nro_documento);
     formDataToSend.append("documentType", mapDocumentType(formData.tipo_documento));
 
-    // FOTO (solo si se cambió)
-    if (formData.foto instanceof File) {
-      formDataToSend.append("photoURL", formData.foto);
+    // Foto
+    if (formData.foto) {
+      formDataToSend.append("photoUrl", formData.foto); 
     }
 
     await actualizarPersona(formDataToSend);
@@ -195,7 +205,7 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     );
 
     const result = await response.json();
-
+    console.log("Respuesta de la API:", result);
     if (!response.ok) {
       alert(result.message || "Error al actualizar la persona");
       return;
@@ -204,6 +214,8 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
     alert(result.message || "Persona actualizada exitosamente");
 
     if (result.data) {
+        if (result.data.secondName == "undefined") {
+          result.data.secondName = undefined;}
       const personaActualizada = {
         id: result.data.id,
         primer_nombre: result.data.firstName,
@@ -215,7 +227,7 @@ const PersonDetail = ({ onClose, personaInicial, onActualizar }) => {
         celular: result.data.phone,
         nro_documento: result.data.documentNumber,
         tipo_documento: mapDocumentType(result.data.documentType, false),
-        foto: result.data.photo || formData.foto || result.data.photoURL || null
+        foto: result.data.photo || formData.foto || result.data.photoUrl || null
       };
 
       setFormData(personaActualizada);

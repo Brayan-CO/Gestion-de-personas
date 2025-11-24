@@ -155,7 +155,7 @@ const handleSubmit = async (e) => {
 
     // Foto
     if (formData.foto) {
-      formDataToSend.append("photoURL", formData.foto); 
+      formDataToSend.append("photoUrl", formData.foto); 
     }
 
     await enviarPersona(formDataToSend);
