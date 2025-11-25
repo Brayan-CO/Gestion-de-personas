@@ -49,10 +49,10 @@ const BusquedaNatural = ({ onSeleccionar, consulta }) => {
         
         console.log('Respuesta RAG:', result);
         
-        // La respuesta ahora es directamente un array de personas
-        if (Array.isArray(result)) {
+        
+        if (Array.isArray(result.personas)) {
           // Mapear las personas al formato del frontend
-          const personasMapeadas = result.map(persona => ({
+          const personasMapeadas = result.personas.map(persona => ({
             id: persona.id,
             primer_nombre: persona.primer_nombre,
             segundo_nombre: persona.segundo_nombre || '',

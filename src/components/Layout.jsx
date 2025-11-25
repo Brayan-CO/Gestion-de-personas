@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useState, useEffect, useRef } from 'react'
-
+import ToggleSwitch from './switch.jsx'
 function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -164,6 +164,7 @@ function Layout() {
 
       {/* Footer */}
       <footer className="bg-gray-800 text-white p-4 mt-auto">
+        <ToggleSwitch />
         <div className="text-center">
           <p className="text-sm">© 2025 Sistema de Gestión de Datos Personales</p>
           <p className="text-xs text-gray-400 mt-1">
